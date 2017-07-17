@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Use correct character set. -->
+  <meta charset="utf-8">
+  <!-- Tell IE to use the latest, best version. -->
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+  <title>Hello World!</title>
+  <script src="../Build/Cesium/Cesium.js"></script>
+  <style>
+      @import url(../Build/Cesium/Widgets/widgets.css);
+      html, body, #cesiumContainer {
+          width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+      }
+
+      .toolbar-left {
+          display: block;
+          position: absolute;
+          top: 5px;
+          left: 5px;
+      }
+  </style>
+</head>
+<body>
+  <div id="cesiumContainer"></div>
+  <div class="toolbar-left">
+    <button onclick="alert('You clicked!');">Click me!</button>
+  </div>
+  <script>
+    var viewer = new Cesium.Viewer('cesiumContainer');
+
+    var scene = viewer.scene;
+    var canvas = viewer.canvas;
+    var camera = viewer.camera;
+
+    canvas.setAttribute('tabindex', '0'); // needed to put focus on the canvas
+    canvas.onclick = function() {
+        canvas.focus();
+    };
+
+    var pin;
+    var pinBuilder = new Cesium.PinBuilder();
+    function addPin(id, position) {
+        viewer.entities.remove(pin)
+        pin = viewer.entities.add({
+            position: position,
+            billboard: {
+                image: pinBuilder.fromText(id, Cesium.Color.SALMON, 48),
+                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
+                eyeOffset: new Cesium.Cartesian3(0, 0, -1000)
+            }
+        });
+    }
+
+    var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+
+    var mouseFollower;
+    var mousePosition;
+    var drawState = false;
+    var points = [];
+
+    var pl;
+    var geometry;
+
+    handler.setInputAction(function(click) {
+      if(drawState == false) {
+        drawState = true;
+        points.add(camera.pickEllipsoid(mouseFollower.position));
+      }
+      console.log(drawState);
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+
+    handler.setInputAction(function(click) {
+      if(drawState == true) {
+        drawState = false;
+        points.length = 0;
+      }
+    }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+    handler.setInputAction(function(e) {
+      //var ellipsoid = viewer.scene.globe.ellipsoid;
+      // Mouse over the globe to see the cartographic position
+      //var cartesian = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(e.clientX,e.clientY), ellipsoid);
+      //console.log(cartesian);
+      viewer.entities.remove(mouseFollower);
+      mouseFollower = viewer.entities.add({
+        position: camera.pickEllipsoid(e.endPosition),
+        point : {
+          pixelSize : 10,
+          color : Cesium.Color.YELLOW
+        }
+      });
+      if(drawState = true) {
+        viewer.entities.remove(pl);
+        pl = viewer.entities.add({
+            polyline : {
+                positions : points,
+                width : 5,
+                material : Cesium.Color.SPRINGGREEN
+            }
+        });
+        if(points.length >= 3) {
+
+        }
+      }
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+  </script>
+</body>
+</html>
