@@ -8,7 +8,16 @@
   <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
   <title>Hello World!</title>
+  <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+  <link rel="stylesheet" href="/resources/demos/style.css">
   <script src="../Build/Cesium/Cesium.js"></script>
+  <script src="jquery-3.2.1.min.js"></script>
+  <script
+  src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"
+  integrity="sha256-VazP97ZCwtekAsvgPBSUwPFKdrwD3unUfSGVYrahUqU="
+  crossorigin="anonymous"></script>
+  <script src="./js/main.js"></script>
+  <script src="./js/dialog.js"></script>
   <style>
       @import url(../Build/Cesium/Widgets/widgets.css);
       html, body, #cesiumContainer {
@@ -26,8 +35,54 @@
 <body>
   <div id="cesiumContainer"></div>
   <div class="toolbar-left">
-    <button onclick="alert('You clicked!');">Click me!</button>
+    <button id="create-user" class="btn btn-success">Click me</button>
+    <button id="wfs">WFS</button>
   </div>
+  <div id="dialog-form" title="Create new user">
+  <p class="validateTips">All form fields are required.</p>
+
+  <form>
+    <fieldset>
+      <label for="name">Name</label>
+      <input type="text" name="name" id="name" value="Jane Smith" class="text ui-widget-content ui-corner-all">
+      <label for="email">Email</label>
+      <input type="text" name="email" id="email" value="jane@smith.com" class="text ui-widget-content ui-corner-all">
+      <label for="password">Password</label>
+      <input type="password" name="password" id="password" value="xxxxxxx" class="text ui-widget-content ui-corner-all">
+
+      <!-- Allow form submission with keyboard without duplicating the dialog button -->
+      <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+    </fieldset>
+  </form>
+</div>
+
+
+<div id="users-contain" class="ui-widget">
+  <h1>Existing Users:</h1>
+  <table id="users" class="ui-widget ui-widget-content">
+    <thead>
+      <tr class="ui-widget-header ">
+        <th>Name</th>
+        <th>Email</th>
+        <th>Password</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>John Doe</td>
+        <td>john.doe@example.com</td>
+        <td>johndoe1</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+  <script>
+    $('#wfs').click(function () {
+      $.get("/wfs", function(data){
+          alert(data);
+      });
+    });
+  </script>
   <script>
     var viewer = new Cesium.Viewer('cesiumContainer');
 
@@ -36,10 +91,52 @@
     var camera = viewer.camera;
 
     canvas.setAttribute('tabindex', '0'); // needed to put focus on the canvas
-    canvas.onclick = function() {
-        canvas.focus();
-    };
 
+    var highlightedEntity;
+    var highlightColor = Cesium.Color.YELLOW.withAlpha(0.6);
+    var normalColor = Cesium.Color.ALICEBLUE;
+
+    //A property that returns a highlight color if the entity is currently moused over, or a default color otherwise.
+    function createCallback(entity){
+        var colorProperty = new Cesium.CallbackProperty(function(time, result){
+            if(highlightedEntity === entity){
+                return Cesium.Color.clone(highlightColor, result);
+            }
+            return Cesium.Color.clone(normalColor, result);
+        }, false);
+
+        return new Cesium.ColorMaterialProperty(colorProperty);
+    }
+
+    var promise = Cesium.GeoJsonDataSource.load('./bbs.geojson');
+         promise.then(function(dataSource) {
+         viewer.dataSources.add(dataSource);
+         var entities = dataSource.entities.values;
+         for (var i = 0; i < entities.length; i++) {
+            var entity = entities[i];
+            //Extrude the polygon based on any attribute you desire
+            //entity.outline = true;
+            //entity.outlineColor = Cesium.Color.BLACK;
+            entity.polygon.material = createCallback(entity);
+            entity.polygon.outline = false;
+            //entity.polygon.outlineColor = Cesium.Color.LIGHTGREY;
+            entity.polygon.extrudedHeight = entity.properties.BUILDING_H;
+        }
+        });
+    viewer.zoomTo(promise);
+
+    var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+    handler.setInputAction(function(click) {
+        var pickedObject = scene.pick(click.position);
+        if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
+            highlightedEntity = pickedObject.id;
+        } else{
+            highlightedEntity = undefined;
+        }
+
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+/*
     var pin;
     var pinBuilder = new Cesium.PinBuilder();
     function addPin(id, position) {
@@ -58,27 +155,60 @@
 
     var mouseFollower;
     var mousePosition;
-    var drawState = false;
-    var points = [];
 
+    var drawState = false;
+    var extrudeState = false;
+
+    var points = [];
     var pl;
+
+    var polygon;
+    var extrudedPolygon;
+    var height = 0;
+
     var geometry;
+
+    var polypls;
+
+    var fPoint;
 
     handler.setInputAction(function(click) {
       if(drawState == false) {
         drawState = true;
-        points.add(camera.pickEllipsoid(mouseFollower.position));
+        console.log(camera.pickEllipsoid(click.position));
+
+        viewer.entities.remove(fPoint);
+        fPoint = viewer.entities.add({
+          position: camera.pickEllipsoid(click.position),
+          point : {
+            pixelSize : 10,
+            color : Cesium.Color.YELLOW
+          }
+        });
       }
+      points.push(camera.pickEllipsoid(click.position));
       console.log(drawState);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
 
     handler.setInputAction(function(click) {
+
+      if(extrudeState == true) {
+        extrudeState = false;
+        viewer.entities.remove(extrudedPolygon);
+      }
+
       if(drawState == true) {
         drawState = false;
-        points.length = 0;
+        if(points.length >= 3) {
+          extrudeState = true;
+        } else {
+          points.length = 0;
+        }
       }
     }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
+
+    var pos;
 
     handler.setInputAction(function(e) {
       //var ellipsoid = viewer.scene.globe.ellipsoid;
@@ -86,28 +216,71 @@
       //var cartesian = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(e.clientX,e.clientY), ellipsoid);
       //console.log(cartesian);
       viewer.entities.remove(mouseFollower);
+      pos = camera.pickEllipsoid(e.endPosition);
       mouseFollower = viewer.entities.add({
-        position: camera.pickEllipsoid(e.endPosition),
+        position: pos,
         point : {
           pixelSize : 10,
           color : Cesium.Color.YELLOW
         }
       });
-      if(drawState = true) {
-        viewer.entities.remove(pl);
-        pl = viewer.entities.add({
-            polyline : {
-                positions : points,
-                width : 5,
-                material : Cesium.Color.SPRINGGREEN
-            }
-        });
-        if(points.length >= 3) {
 
+      if(drawState == true) {
+        if(pos !== undefined) {
+          points.push(pos);
+
+          var pls = [];
+          for(x in points){
+              pls = pls.concat(points[x]);
+          }
+
+          if(points.length >= 2) {
+            viewer.entities.remove(pl);
+            pl = viewer.entities.add({
+                polyline : {
+                    positions : pls,
+                    width : 5,
+                    material : Cesium.Color.SPRINGGREEN
+                }
+            });
+          }
+          if(points.length >= 3) {
+            viewer.entities.remove(polygon);
+            polypls = pls.concat(points[0]);
+            polygon = viewer.entities.add({
+                name : 'Red polygon on surface',
+                polygon : {
+                    hierarchy : polypls,
+                    material : Cesium.Color.RED
+                }
+            });
+          }
+          points.pop();
+        }
+      }
+      if(extrudeState == true && polygon != undefined) {
+        var sigma = e.endPosition.y - e.startPosition.y;
+        height += sigma * 1000 ;
+        if(height < 0) {
+          height = 0.0;
+        }
+
+        viewer.entities.remove(extrudedPolygon);
+        if(height > 0) {
+          extrudedPolygon = viewer.entities.add({
+              name : 'Green extruded polygon',
+              polygon : {
+                  hierarchy : polypls,
+                  extrudedHeight: height,
+                  material : Cesium.Color.GREEN,
+                  closeTop : true,
+                  closeBottom : true
+              }
+          });
         }
       }
     }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-
+*/
   </script>
 </body>
 </html>

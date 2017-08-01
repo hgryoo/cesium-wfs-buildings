@@ -115,6 +115,11 @@
         });
     }
 
+    var wfs = require('./js/wfs');
+    app.get('/wfs',
+        wfs.getFeatures
+    );
+
     app.get('/proxy/*', function(req, res, next) {
         // look for request like http://localhost:8080/proxy/http://example.com/file?query=1
         var remoteUrl = getRemoteUrlFromParam(req);
