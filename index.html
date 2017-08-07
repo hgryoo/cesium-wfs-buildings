@@ -9,7 +9,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
   <title>Hello World!</title>
   <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-  <link rel="stylesheet" href="/resources/demos/style.css">
   <script src="../Build/Cesium/Cesium.js"></script>
   <script src="jquery-3.2.1.min.js"></script>
   <script
@@ -18,12 +17,27 @@
   crossorigin="anonymous"></script>
   <script src="./js/main.js"></script>
   <script src="./js/dialog.js"></script>
+  <script src="./js/drawing.js"></script>
+  <script src="./js/geojson.js"></script>
+  <script src="./js/wfsDialog.js"></script>
+  <script src="./js/loader/IndoorGMLLoader.js"></script>
+  <script src='./js/model/Dictionary.js' type='text/javascript'></script>
+  <script src='./js/model/Model.js' type='text/javascript'></script>
+  <script src="./js/viewer.js"></script>
+  <script src="./js/MovingFeature.js"></script>
+  <script src="./js/test.js"></script>
+  <script src="./js/Loader.js"></script>
+
   <style>
       @import url(../Build/Cesium/Widgets/widgets.css);
       html, body, #cesiumContainer {
           width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
       }
-
+      #toolbar {
+         background: rgba(42, 42, 42, 0.8);
+         padding: 2px;
+         border-radius: 4px;
+      }
       .toolbar-left {
           display: block;
           position: absolute;
@@ -34,55 +48,54 @@
 </head>
 <body>
   <div id="cesiumContainer"></div>
-  <div class="toolbar-left">
+  <div id="toolbar" class="toolbar-left">
     <button id="create-user" class="btn btn-success">Click me</button>
-    <button id="wfs">WFS</button>
+    <button id="wfs" class="btn btn-success">WFS</button>
+    <button id="draw-building" class="btn btn-success">Draw Buildings</button>
+    <!--<button id="draw-indoor" class="btn btn-success">Draw Indoor Building</button>-->
+    <input type="file" id="draw-indoor" onchange='readText(this)' text="Draw Indoor Building">
+    <button id="result" class="btn btn-success">Show WFS Result</button>
   </div>
-  <div id="dialog-form" title="Create new user">
-  <p class="validateTips">All form fields are required.</p>
 
-  <form>
+  /* WFS Dialog */
+  <div id="dialog-form" title="Web Feature Service Request">
+   <form>
     <fieldset>
-      <label for="name">Name</label>
-      <input type="text" name="name" id="name" value="Jane Smith" class="text ui-widget-content ui-corner-all">
-      <label for="email">Email</label>
-      <input type="text" name="email" id="email" value="jane@smith.com" class="text ui-widget-content ui-corner-all">
-      <label for="password">Password</label>
-      <input type="password" name="password" id="password" value="xxxxxxx" class="text ui-widget-content ui-corner-all">
-
+      <label for="url">URL</label>
+      <input type="text" name="url" id="url" class="ui-widget ui-state-default ui-corner-all">
+      <label for="content">Content</label>
+      <textarea rows="4" cols="50" id="content" class="ui-widget ui-state-default ui-corner-all">
+      At w3schools.com you will learn how to make a website. We offer free tutorials in all web development technologies.
+      </textarea>
       <!-- Allow form submission with keyboard without duplicating the dialog button -->
       <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
     </fieldset>
   </form>
-</div>
+ </div>
 
+ <div id="users-contain" class="ui-widget">
+   <h1>Existing Users:</h1>
+   <table id="users" class="ui-widget ui-widget-content">
+     <thead>
+       <tr class="ui-widget-header ">
+         <th>Name</th>
+         <th>Email</th>
+         <th>Password</th>
+       </tr>
+     </thead>
+     <tbody>
+       <tr>
+         <td>John Doe</td>
+         <td>john.doe@example.com</td>
+         <td>johndoe1</td>
+       </tr>
+     </tbody>
+   </table>
+ </div>
 
-<div id="users-contain" class="ui-widget">
-  <h1>Existing Users:</h1>
-  <table id="users" class="ui-widget ui-widget-content">
-    <thead>
-      <tr class="ui-widget-header ">
-        <th>Name</th>
-        <th>Email</th>
-        <th>Password</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>John Doe</td>
-        <td>john.doe@example.com</td>
-        <td>johndoe1</td>
-      </tr>
-    </tbody>
-  </table>
-  </div>
-  <script>
-    $('#wfs').click(function () {
-      $.get("/wfs", function(data){
-          alert(data);
-      });
-    });
-  </script>
+ <div id="dialog-result" title="Web Feature Service Response">
+ </div>
+
   <script>
     var viewer = new Cesium.Viewer('cesiumContainer');
 
@@ -92,49 +105,55 @@
 
     canvas.setAttribute('tabindex', '0'); // needed to put focus on the canvas
 
-    var highlightedEntity;
-    var highlightColor = Cesium.Color.YELLOW.withAlpha(0.6);
-    var normalColor = Cesium.Color.ALICEBLUE;
-
-    //A property that returns a highlight color if the entity is currently moused over, or a default color otherwise.
-    function createCallback(entity){
-        var colorProperty = new Cesium.CallbackProperty(function(time, result){
-            if(highlightedEntity === entity){
-                return Cesium.Color.clone(highlightColor, result);
-            }
-            return Cesium.Color.clone(normalColor, result);
-        }, false);
-
-        return new Cesium.ColorMaterialProperty(colorProperty);
-    }
-
-    var promise = Cesium.GeoJsonDataSource.load('./bbs.geojson');
-         promise.then(function(dataSource) {
-         viewer.dataSources.add(dataSource);
-         var entities = dataSource.entities.values;
-         for (var i = 0; i < entities.length; i++) {
-            var entity = entities[i];
-            //Extrude the polygon based on any attribute you desire
-            //entity.outline = true;
-            //entity.outlineColor = Cesium.Color.BLACK;
-            entity.polygon.material = createCallback(entity);
-            entity.polygon.outline = false;
-            //entity.polygon.outlineColor = Cesium.Color.LIGHTGREY;
-            entity.polygon.extrudedHeight = entity.properties.BUILDING_H;
-        }
-        });
-    viewer.zoomTo(promise);
-
     var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
-    handler.setInputAction(function(click) {
-        var pickedObject = scene.pick(click.position);
-        if (Cesium.defined(pickedObject) && pickedObject.id instanceof Cesium.Entity) {
-            highlightedEntity = pickedObject.id;
-        } else{
-            highlightedEntity = undefined;
-        }
 
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    ellipsoid = viewer.scene.globe.ellipsoid;
+    userScale = 0;
+    x = 15;y = 25;
+    scale = 1;
+    translate = [0, 0, 0];
+    ENU = new Cesium.Matrix4();
+    position = Cesium.Cartesian3.fromDegrees(127.1034,37.51283,0);
+      //var currentRotation = new Cesium.Matrix3();
+    var angle = 0.43;
+    orientation  = new Cesium.Matrix4(Math.cos(angle),-Math.sin(angle),0,0,
+                                   Math.sin(angle), Math.cos(angle),0,0,
+                                  0,0,1,0,
+                                 0,0,0,1);
+    Cesium.Transforms.eastNorthUpToFixedFrame(position,ellipsoid,ENU);//matrix4
+
+    var lastResult;
+    $('#wfs').click(function () {
+      $.get("/wfs", function(data){
+          lastResult = data;
+          document.getElementById('dialog-result').innerText = lastResult;
+      });
+    });
+
+    isBuildingDraw = false;
+    isIndoorDraw = false;
+
+    var geojsonPromise;
+    $('#draw-building').click(function () {
+      if(!isBuildingDraw) {
+        geojsonPromise = drawExtrudedBuildings();
+        handler.setInputAction(selectCallback, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+        isBuildingDraw = true;
+      }
+      else {
+        viewer.camera.flyTo({
+            destination : geojsonPromise
+        });
+      }
+    });
+    handler.setInputAction(followMouse, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+    function readText(that){
+        var loader = new Loader();
+        if(that.files && that.files[0]){
+            loader.loadFile(that.files[0]);
+        }//end if html5 filelist support
+    }
 
 /*
     var pin;

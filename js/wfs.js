@@ -1,44 +1,38 @@
 exports.getFeatures = function(req, res) {
-  const geofilter = require('geofilter');
-  const wfs = require('wfs');
+  function template(options) {
+      var reqeust =
+      "<?xml version=\"1.0\" ?> \
+      <wfs:GetFeature \
+      service=\"" + options.service + "\" \
+      version=\"" + options.version + "\" \
+      outputFormat=\"" + options.outputFormat + "\" \
+      xmlns:" + options.ns + "=\"" + options.url + "\" \
+      xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" \
+      xmlns:wfs=\"http://www.opengis.net/wfs\" \
+      xmlns:ogc=\"http://www.opengis.net/ogc\" \
+      xmlns:gml=\"http://www.opengis.net/gml\" \
+      xsi:schemaLocation=\"http://www.opengis.net/wfs ../wfs/1.1.0/WFS.xsd\"> \
+      <wfs:Query typeName=\"" + options.ns + ":" + options.typeName + "\">"
+      + options.filter +
+      "</wfs:Query>\
+      </wfs:GetFeature>";
 
-  const rules = {
-    isPark: {
-      type: 'like',
-      args: {
-        property: 'type',
-        value: 'Park',
-        matchCase: false
-      }
-    },
-
-    // -74.00013,40.600659,-73.900909,40.700422
-    inBrooklyn: {
-      type: 'bbox',
-      args: {
-        property: 'geom',
-        min: '40.60 -74.00 0',
-        max: '40.70 -73.90 100'
-      }
-    }
-  };
-
-  function handleFeatures(err, results) {
-    if (err) {
-      return console.log('ERROR: ', err);
-    }
-
-    if (results.features) {
-      console.log('found ' + results.features.length + ' parks');
-      results.features.forEach(function(feature) {
-        console.log(`${feature.properties.name} (feature id: ${feature.id})`);
-      });
-    }
+      return reqeust;
   }
 
-  wfs.getFeature({
-    url: 'https://maps-public.geo.nyu.edu/geoserver/sdr/wfs',
-    typeName: 'sdr:nyu_2451_34564',
-    filter: new geofilter.RuleSet([rules.isPark, rules.inBrooklyn]).to('ogc'),
-  }, handleFeatures);
+    var rest = require('restler');
+    rest.post('http://127.0.0.1:8883/geoserver/3dwfs', {
+      data: template(
+          {
+            service : "WFS3D",
+            version : "1.1.0",
+            outputFormat : "text/xml; subtype=gml3d/3.1.1",
+            ns : "stem",
+            url : "http://stemlab.pnu.edu",
+            typeName : "solid",
+            filter : ""
+          })
+    }).on('complete', function(data) {
+      res.send(data);
+    });
 }
