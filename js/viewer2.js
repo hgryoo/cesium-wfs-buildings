@@ -30,13 +30,14 @@ function draw(indoor,maxmin_xyz) {
   group = [];
   groupline = [];
   HilightCell = [];
-  colors = [Cesium.Color.ALICEBLUE.withAlpha(0.1),Cesium.Color.ALICEBLUE.withAlpha(0.1),Cesium.Color.ALICEBLUE.withAlpha(0.1),Cesium.Color.ALICEBLUE.withAlpha(1),Cesium.Color.ALICEBLUE.withAlpha(1)];
+  colors = [Cesium.Color.BLUE.withAlpha(0.1),Cesium.Color.GREEN.withAlpha(0.1),Cesium.Color.VIOLET.withAlpha(0.1),Cesium.Color.YELLOW.withAlpha(1),Cesium.Color.WHITE.withAlpha(1)];
   for(var i = 0; i < cells.length; i++) {
       var surfaces = cells[i].geometry;
       var type = cells[i].type;
       var floor = cells[i].floor;
       var cellid = cells[i].cellid;
       HilightCell[cellid] = [];
+      //solidtocsv += cellid + ", \"Solid(((";
       for(var j = 0; j < surfaces.length; j++) {
           transformCoordinates(surfaces[j].exterior);
           transformCoordinates(surfaces[j].interior);
@@ -48,7 +49,11 @@ function draw(indoor,maxmin_xyz) {
             createPolygonwithHole(surfaces[j].exterior, surfaces[j].interior, surfaces[j].polyonid, type, floor);
             HilightCell[cellid].push(surfaces[j].polyonid);
           }
+          if(j != surfaces.length - 1) {
+            //solidtocsv += ") , (";
+          }
       }
+      //solidtocsv += ")))\"\n";
   }
 
 

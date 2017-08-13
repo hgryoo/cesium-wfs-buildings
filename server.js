@@ -154,7 +154,7 @@
                 res.header(filterHeaders(req, response.headers));
             }
 
-            res.status(code).send(body);
+            res.status(code).send(body);app.use(express.bodyParser());
         });
     });
 
@@ -199,8 +199,17 @@
     });
 
     /* WFS Settings */
+    var bodyParser = require('body-parser')
+    app.use(bodyParser.urlencoded({
+      extended: true
+    }));
+
+    /**bodyParser.json(options)
+     * Parses the text as JSON and exposes the resulting object on req.body.
+     */
+    app.use(bodyParser.json());
     var wfs = require('./js/wfs');
-    app.get('/wfs', wfs.getFeatures);
+    app.post('/wfs', wfs.getFeatures);
 
 
 })();

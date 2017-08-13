@@ -17,8 +17,16 @@ function materialCallback(entity){
 }
 
 function getIdentifier(id) {
-  var idStr = id._value.split('_');
-  return idStr[1];
+  var idStr;
+  /*
+  if(typeof id === string) {
+    var idStr = id.split('_');
+  } else {
+    var idStr = id._value.split('_');
+  }
+  */
+  //return idStr[1];
+  return id;
 }
 
 function drawExtrudedBuildings() {

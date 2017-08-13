@@ -7,7 +7,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <!-- Make the application on mobile take up the full browser screen and disable user scaling. -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
-  <title>Hello World!</title>
+  <title>GeoServer 3D Demo</title>
   <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
   <script src="../Build/Cesium/Cesium.js"></script>
   <script src="jquery-3.2.1.min.js"></script>
@@ -27,11 +27,16 @@
   <script src="./js/MovingFeature.js"></script>
   <script src="./js/test.js"></script>
   <script src="./js/Loader.js"></script>
+  <script src="./js/filter.js"></script>
 
   <style>
       @import url(../Build/Cesium/Widgets/widgets.css);
       html, body, #cesiumContainer {
           width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden;
+      }
+      label {
+      display: block;
+      margin: 30px 0 0 0;
       }
       #toolbar {
          background: rgba(42, 42, 42, 0.8);
@@ -44,60 +49,81 @@
           top: 5px;
           left: 5px;
       }
+      #custom-handle {
+        width: 3em;
+        height: 1.6em;
+        top: 50%;
+        margin-top: -.8em;
+        text-align: center;
+        line-height: 1.6em;
+      }
   </style>
 </head>
 <body>
   <div id="cesiumContainer"></div>
   <div id="toolbar" class="toolbar-left">
-    <button id="create-user" class="btn btn-success">Click me</button>
-    <button id="wfs" class="btn btn-success">WFS</button>
-    <button id="draw-building" class="btn btn-success">Draw Buildings</button>
-    <!--<button id="draw-indoor" class="btn btn-success">Draw Indoor Building</button>-->
-    <input type="file" id="draw-indoor" onchange='readText(this)' text="Draw Indoor Building">
-    <button id="result" class="btn btn-success">Show WFS Result</button>
+    <div id="tabs">
+      <ul>
+        <li><a href="#loader-tool">Loader</a></li>
+        <li><a href="#drawing-tool">Drawing</a></li>
+        <li><a href="#wfs-tool">Web Feature Service</a></li>
+      </ul>
+      <div id="loader-tool">
+        <button id="draw-building" class="btn btn-success">Draw Buildings</button>
+        <!--<button id="draw-indoor" class="btn btn-success">Draw Indoor Building</button>-->
+        <input type="file" id="draw-indoor" onchange='readText(this)' text="Draw Indoor Building">
+      </div>
+
+      <div id="drawing-tool">
+        <select name="type" id="type">
+          <option selected="selected">Polyline</option>
+          <option>Polygon</option>
+          <option>Solid</option>
+          <option>Box</option>
+        </select>
+        <p>
+          <button id="draw" class="btn btn-success">Draw</button>
+          <button id="prev" class="btn btn-success">Prev</button>
+          <button id="draw-done" class="btn btn-success">Done</button>
+          <button id="draw-cancel" class="btn btn-success">Cancel</button>
+        </p>
+        <p>
+          <div id="slider">
+            <div id="custom-handle" class="ui-slider-handle"></div>
+          </div>
+        </p>
+      </div>
+
+      <div id="wfs-tool">
+        <button id="prepare-query" class="btn">Prepare Query</button>
+        <button id="show-query" class="btn">Show Query</button><br/>
+        <button id="send-wfs" class="btn">Send Query</button><br/>
+        <button id="show-wfs" class="btn">Show Result</button>
+        <button id="result-wfs" class="btn">Apply Result</button>
+      </div>
+    </div>
   </div>
 
   /* WFS Dialog */
   <div id="dialog-form" title="Web Feature Service Request">
-   <form>
-    <fieldset>
-      <label for="url">URL</label>
-      <input type="text" name="url" id="url" class="ui-widget ui-state-default ui-corner-all">
-      <label for="content">Content</label>
-      <textarea rows="4" cols="50" id="content" class="ui-widget ui-state-default ui-corner-all">
-      At w3schools.com you will learn how to make a website. We offer free tutorials in all web development technologies.
-      </textarea>
-      <!-- Allow form submission with keyboard without duplicating the dialog button -->
-      <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
-    </fieldset>
-  </form>
- </div>
 
- <div id="users-contain" class="ui-widget">
-   <h1>Existing Users:</h1>
-   <table id="users" class="ui-widget ui-widget-content">
-     <thead>
-       <tr class="ui-widget-header ">
-         <th>Name</th>
-         <th>Email</th>
-         <th>Password</th>
-       </tr>
-     </thead>
-     <tbody>
-       <tr>
-         <td>John Doe</td>
-         <td>john.doe@example.com</td>
-         <td>johndoe1</td>
-       </tr>
-     </tbody>
-   </table>
- </div>
+  </div>
 
- <div id="dialog-result" title="Web Feature Service Response">
- </div>
+  <div id="dialog-result" title="Web Feature Service Response"></div>
 
   <script>
-    var viewer = new Cesium.Viewer('cesiumContainer');
+    $( function() {
+      $( "#tabs" ).tabs();
+    } );
+
+    var viewer = new Cesium.Viewer('cesiumContainer', {
+      sceneMode : Cesium.SceneMode.SCENE3D,
+      timeline : false,
+      animation : false,
+      navigationHelpButton : false,
+      scene3DOnly : true,
+      geocoder : false
+    });
 
     var scene = viewer.scene;
     var canvas = viewer.canvas;
@@ -123,12 +149,6 @@
     Cesium.Transforms.eastNorthUpToFixedFrame(position,ellipsoid,ENU);//matrix4
 
     var lastResult;
-    $('#wfs').click(function () {
-      $.get("/wfs", function(data){
-          lastResult = data;
-          document.getElementById('dialog-result').innerText = lastResult;
-      });
-    });
 
     isBuildingDraw = false;
     isIndoorDraw = false;
@@ -141,9 +161,7 @@
         isBuildingDraw = true;
       }
       else {
-        viewer.camera.flyTo({
-            destination : geojsonPromise
-        });
+        viewer.zoomTo(geojsonPromise);
       }
     });
     handler.setInputAction(followMouse, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
@@ -152,154 +170,8 @@
         var loader = new Loader();
         if(that.files && that.files[0]){
             loader.loadFile(that.files[0]);
-        }//end if html5 filelist support
+        }
     }
-
-/*
-    var pin;
-    var pinBuilder = new Cesium.PinBuilder();
-    function addPin(id, position) {
-        viewer.entities.remove(pin)
-        pin = viewer.entities.add({
-            position: position,
-            billboard: {
-                image: pinBuilder.fromText(id, Cesium.Color.SALMON, 48),
-                verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
-                eyeOffset: new Cesium.Cartesian3(0, 0, -1000)
-            }
-        });
-    }
-
-    var handler = new Cesium.ScreenSpaceEventHandler(scene.canvas);
-
-    var mouseFollower;
-    var mousePosition;
-
-    var drawState = false;
-    var extrudeState = false;
-
-    var points = [];
-    var pl;
-
-    var polygon;
-    var extrudedPolygon;
-    var height = 0;
-
-    var geometry;
-
-    var polypls;
-
-    var fPoint;
-
-    handler.setInputAction(function(click) {
-      if(drawState == false) {
-        drawState = true;
-        console.log(camera.pickEllipsoid(click.position));
-
-        viewer.entities.remove(fPoint);
-        fPoint = viewer.entities.add({
-          position: camera.pickEllipsoid(click.position),
-          point : {
-            pixelSize : 10,
-            color : Cesium.Color.YELLOW
-          }
-        });
-      }
-      points.push(camera.pickEllipsoid(click.position));
-      console.log(drawState);
-    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-
-
-    handler.setInputAction(function(click) {
-
-      if(extrudeState == true) {
-        extrudeState = false;
-        viewer.entities.remove(extrudedPolygon);
-      }
-
-      if(drawState == true) {
-        drawState = false;
-        if(points.length >= 3) {
-          extrudeState = true;
-        } else {
-          points.length = 0;
-        }
-      }
-    }, Cesium.ScreenSpaceEventType.RIGHT_CLICK);
-
-    var pos;
-
-    handler.setInputAction(function(e) {
-      //var ellipsoid = viewer.scene.globe.ellipsoid;
-      // Mouse over the globe to see the cartographic position
-      //var cartesian = viewer.camera.pickEllipsoid(new Cesium.Cartesian2(e.clientX,e.clientY), ellipsoid);
-      //console.log(cartesian);
-      viewer.entities.remove(mouseFollower);
-      pos = camera.pickEllipsoid(e.endPosition);
-      mouseFollower = viewer.entities.add({
-        position: pos,
-        point : {
-          pixelSize : 10,
-          color : Cesium.Color.YELLOW
-        }
-      });
-
-      if(drawState == true) {
-        if(pos !== undefined) {
-          points.push(pos);
-
-          var pls = [];
-          for(x in points){
-              pls = pls.concat(points[x]);
-          }
-
-          if(points.length >= 2) {
-            viewer.entities.remove(pl);
-            pl = viewer.entities.add({
-                polyline : {
-                    positions : pls,
-                    width : 5,
-                    material : Cesium.Color.SPRINGGREEN
-                }
-            });
-          }
-          if(points.length >= 3) {
-            viewer.entities.remove(polygon);
-            polypls = pls.concat(points[0]);
-            polygon = viewer.entities.add({
-                name : 'Red polygon on surface',
-                polygon : {
-                    hierarchy : polypls,
-                    material : Cesium.Color.RED
-                }
-            });
-          }
-          points.pop();
-        }
-      }
-      if(extrudeState == true && polygon != undefined) {
-        var sigma = e.endPosition.y - e.startPosition.y;
-        height += sigma * 1000 ;
-        if(height < 0) {
-          height = 0.0;
-        }
-
-        viewer.entities.remove(extrudedPolygon);
-        if(height > 0) {
-          extrudedPolygon = viewer.entities.add({
-              name : 'Green extruded polygon',
-              polygon : {
-                  hierarchy : polypls,
-                  extrudedHeight: height,
-                  material : Cesium.Color.GREEN,
-                  closeTop : true,
-                  closeBottom : true
-              }
-          });
-        }
-      }
-    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-*/
   </script>
 </body>
 </html>
