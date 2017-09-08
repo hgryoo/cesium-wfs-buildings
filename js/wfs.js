@@ -36,20 +36,27 @@ exports.getFeatures = function(req, res) {
     fText = req.body.filter;
   }
 
+  var tText = req.body.typeName;
+
+  var prop = req.body.properteis;
+
+
+  var request = template(
+      {
+        service : "WFS-3D",
+        version : "1.1.0",
+        outputFormat : "text/xml; subtype=gml3d/3.1.1",
+        ns : "stem",
+        url : "http://stemlab.pnu.edu",
+        typeName : tText,
+        properties : prop,
+        filter : fText
+      });
+  console.log(request);
   //text/xml; subtype=gml3d/3.1.1
   var rest = require('restler');
-  rest.post('http://127.0.0.1:8883/geoserver/3dwfs', {
-    data: template(
-        {
-          service : "WFS3D",
-          version : "1.1.0",
-          outputFormat : "text/xml; subtype=gml3d/3.1.1",
-          ns : "stem",
-          url : "http://stemlab.pnu.edu",
-          typeName : "footprint",
-          properties : ["part_id"],
-          filter : fText
-        })
+  rest.post('http://127.0.0.1:8883/geoserver/wfs', {
+    data : request
   }).on('complete', function(data) {
     res.send(data);
   });

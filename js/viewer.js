@@ -22,6 +22,7 @@ function transformCoordinates(myvertices) {
   }
 }
 
+var HilightCell = [];
 function draw(indoor,maxmin_xyz) {
   console.log("before draw");
   console.log(new Date(Date.now()));
@@ -29,8 +30,7 @@ function draw(indoor,maxmin_xyz) {
   var cells = indoor.primalSpaceFeature;
   group = [];
   groupline = [];
-  HilightCell = [];
-  colors = [Cesium.Color.ALICEBLUE.withAlpha(0.1),Cesium.Color.ALICEBLUE.withAlpha(0.1),Cesium.Color.ALICEBLUE.withAlpha(0.1),Cesium.Color.ALICEBLUE.withAlpha(1),Cesium.Color.ALICEBLUE.withAlpha(1)];
+  colors = [Cesium.Color.ALICEBLUE.withAlpha(0.1),Cesium.Color.ALICEBLUE.withAlpha(0.1),Cesium.Color.ALICEBLUE.withAlpha(0.1),Cesium.Color.ALICEBLUE.withAlpha(0.1),Cesium.Color.ALICEBLUE.withAlpha(0.1)];
   for(var i = 0; i < cells.length; i++) {
       var surfaces = cells[i].geometry;
       var type = cells[i].type;
@@ -53,6 +53,7 @@ function draw(indoor,maxmin_xyz) {
 
 
   addToPrimitive(group,groupline);
+  /*
   var graphs = indoor.multiLayeredGraph;
   for(var i = 0; i < graphs.length; i++){
         var edges = {};
@@ -72,6 +73,7 @@ function draw(indoor,maxmin_xyz) {
         }
         NetworkDictionary[graphs[i].graphid] = edges;
     }
+    */
     console.log("draw transition finish");
     console.log(new Date(Date.now()));
     viewer.zoomTo(viewer.entities);
@@ -191,7 +193,7 @@ function createPolygon(exterior,id,color,floor) {
                                     //outlineWidth : 2.0
                                 }),
                       attributes : {
-                        color : Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.BLACK.withAlpha(0.2))
+                        color : Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.BLACK.withAlpha(1))
                                 },
                       id : lineID
                     })
@@ -238,7 +240,7 @@ function createPolygonwithHole(exterior,interior,id,color,floor) {
                                     perPositionHeight : true
                                 }),
                       attributes : {
-                        color : Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.BLACK.withAlpha(0.2))
+                        color : Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.BLACK.withAlpha(1))
                                 },
                       id : lineID
                     })

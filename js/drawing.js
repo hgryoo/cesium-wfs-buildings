@@ -67,6 +67,7 @@ var drawMouse = function(click) {
     if(height > 0) {
       cartesian = Cesium.Cartesian3.fromRadians(carto.longitude, carto.latitude, carto.height + height);
     }
+
     cartoPoints.push(new Cesium.Cartographic(carto.longitude, carto.latitude, carto.height + height));
     points.push(cartesian);
     drawGeom();
@@ -225,6 +226,8 @@ function resetDrawing() {
   points = [];
   cartoPOints = [];
   viewer.scene.primitives.remove(primitiveCollection);
+  height = 0;
+  $("#slider").slider('value', height);
   //$("#draw").button("enable");
   //$("#prev").button("disable");
   //$("#draw-done").button("disable");
@@ -258,6 +261,7 @@ $(function() {
       $("#draw-cancel").button("enable");
       drawState = true;
       resetDrawing();
+      handle.text(height);
       handler.setInputAction(drawMouse, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     });
 
@@ -268,9 +272,6 @@ $(function() {
       $("#draw").button("enable");
       $("#draw-done").button("disable");
       $("#draw-cancel").button("disable");
-      height = 0;
-      $("#slider").slider('value', height);
-      handle.text(height);
       drawState = false;
       queryType = drawType;
       handler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
@@ -287,9 +288,6 @@ $(function() {
       $("#draw").button("enable");
       $("#draw-done").button("disable");
       $("#draw-cancel").button("disable");
-      height = 0;
-      $("#slider").slider('value', height);
-      handle.text(height);
       drawState = false;
       resetDrawing();
       handler.removeInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK);
