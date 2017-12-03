@@ -46,8 +46,8 @@ exports.getFeatures = function(req, res) {
         service : "WFS-3D",
         version : "1.1.0",
         outputFormat : "text/xml; subtype=gml3d/3.1.1",
-        ns : "stem",
-        url : "http://stemlab.pnu.edu",
+        ns : "topp",
+        url : "http://www.openplans.org/topp",
         typeName : tText,
         properties : prop,
         filter : fText
@@ -55,7 +55,7 @@ exports.getFeatures = function(req, res) {
   console.log(request);
   //text/xml; subtype=gml3d/3.1.1
   var rest = require('restler');
-  rest.post('http://127.0.0.1:8883/geoserver/wfs', {
+  rest.post('http://164.125.37.201:9999/geoserver/wfs', {
     data : request
   }).on('complete', function(data) {
     res.send(data);

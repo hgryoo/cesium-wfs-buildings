@@ -53,7 +53,7 @@ $( function() {
         console.log(lastResult);
         $xml = $( $.parseXML( data ) );
         highlightedEntities = [];
-        $ids = $xml.find("stem\\:part_id").each(function() {
+        $ids = $xml.find("topp\\:part_id").each(function() {
           var $id = $(this);
           var entity = entityMap[getIdentifier($id.text())];
           console.log($id.text());
@@ -69,7 +69,7 @@ $( function() {
         console.log(lastResult);
         $xml = $( $.parseXML( data ) );
         clearHighlight();
-        $ids = $xml.find("stem\\:id").each(function() {
+        $ids = $xml.find("topp\\:id").each(function() {
           var $id = $(this);
           highlited.push($id.text());
           var polygons = HilightCell[ $id.text() ];
